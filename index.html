@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Controle de Estoque</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root{
+      --grad-a:#4facfe; --grad-b:#00f2fe;
+      --primary:#4facfe; --primary-2:#00d0fe;
+      --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --info:#6366f1;
+      --bg:#f4f6f9; --card:#fff; --text:#1f2937; --muted:#6b7280;
+      --radius:18px; --shadow:0 10px 24px rgba(0,0,0,.08);
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+      color:var(--text); background: linear-gradient(135deg,var(--grad-a),var(--grad-b)) fixed;
+    }
+
+    /* Header */
+    .hero{
+      padding:24px 16px 12px; color:#fff; text-align:center;
+    }
+    .hero h1{margin:0; font-size:1.9rem; letter-spacing:.3px}
+    .hero p{margin:.35rem 0 0; opacity:.9}
+
+    /* Tabs */
+    .tabs{
+      display:flex; gap:8px; padding:0 12px 16px; overflow:auto;
+    }
+    .tab-btn{
+      flex:1; min-width:140px; border:0; border-radius:14px;
+      background:rgba(255,255,255,.18); backdrop-filter: blur(6px);
+      color:#fff; padding:12px; font-weight:600; cursor:pointer;
+      transition:.2s transform, .2s background;
+    }
+    .tab-btn.active{background:#fff; color:var(--text); box-shadow:var(--shadow)}
+    .tab-btn:active{transform:scale(.98)}
+
+    /* Main content area (cards grid) */
+    main{ padding:16px; display:grid; gap:16px }
+    .card{
+      background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+      padding:16px;
+    }
+    .card h2{margin:0 0 12px; font-size:1.1rem; color:var(--primary)}
+    .row{display:grid; gap:12px}
+    @media (min-width:820px){
+      main{grid-template-columns:1fr 1fr}
+      .span-2{grid-column:span 2}
+      .row.col-2{grid-template-columns:1fr 1fr}
+      .row.col-3{grid-template-columns:repeat(3,1fr)}
+    }
+
+    /* Inputs */
+    label{display:block; font-size:.9rem; color:var(--muted); margin:.35rem 0 .15rem}
+    input, select{
+      width:100%; padding:.8rem .9rem; border:1px solid #e5e7eb; border-radius:14px;
+      background:#fafafa; outline:0; font-size:.96rem;
+    }
+    input:focus, select:focus{border-color:var(--primary); background:#fff}
+
+    /* Buttons */
+    .btn{width:100%; border:0; border-radius:14px; padding:.9rem 1rem; color:#fff; font-weight:700; cursor:pointer}
+    .btn-primary{background:linear-gradient(135deg,var(--grad-a),var(--grad-b))}
+    .btn-primary:hover{filter:brightness(1.05)}
+    .btn-ghost{background:#eef2ff; color:#374151}
+
+    /* Estoque KPI cards */
+    .kpis{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+    .kpi{
+      border-radius:16px; padding:14px; color:#fff; position:relative; overflow:hidden;
+    }
+    .kpi h3{margin:0; font-size:.95rem; opacity:.95}
+    .kpi .big{margin-top:.15rem; font-size:1.7rem; font-weight:800}
+    .kpi .tag{position:absolute; right:10px; bottom:-6px; opacity:.12; font-size:48px}
+    .kpi.disp{background:linear-gradient(160deg,#34d399,#059669)}
+    .kpi.inst{background:linear-gradient(160deg,#60a5fa,#2563eb)}
+    .kpi.ret{background:linear-gradient(160deg,#f59e0b,#b45309)}
+    .kpi.dev{background:linear-gradient(160deg,#a78bfa,#6d28d9)}
+
+    /* Estoque listas */
+    .estoque-grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+    .badge{display:inline-block; padding:.25rem .6rem; border-radius:999px; font-size:.78rem; font-weight:700}
+    .b-disp{background:#ecfdf5; color:#047857}
+    .b-inst{background:#eff6ff; color:#1d4ed8}
+    .b-ret{background:#fffbeb; color:#b45309}
+    .b-dev{background:#f5f3ff; color:#6d28d9}
+    .list{max-height:200px; overflow:auto; border:1px dashed #e5e7eb; border-radius:12px; padding:8px; background:#fafafa}
+    .item{display:flex; align-items:center; gap:10px; padding:8px; border-radius:12px; background:#fff; margin:6px 0}
+    .item .dot{width:10px; height:10px; border-radius:50%}
+    .dot.disp{background:#10b981}.dot.inst{background:#3b82f6}.dot.ret{background:#f59e0b}.dot.dev{background:#8b5cf6}
+    .item small{color:var(--muted)}
+
+    /* Histórico */
+    .h-item{
+      display:grid; gap:6px; background:linear-gradient(180deg,#f8fafc,#fff);
+      border-radius:16px; padding:12px; margin:10px 0; border:1px solid #eef2f7;
+    }
+    .h-top{display:flex; align-items:center; justify-content:space-between}
+    .chip{padding:.25rem .6rem; border-radius:999px; font-size:.75rem; font-weight:800; color:#fff}
+    .c-add{background:var(--ok)} .c-assign{background:#3b82f6} .c-withdraw{background:#f59e0b}
+    .c-return{background:#8b5cf6} .c-swap{background:#22c55e}
+    .h-meta{color:var(--muted); font-size:.85rem}
+    .h-mac{font-weight:700}
+    .search{display:flex; gap:8px; margin:.4rem 0 8px}
+    .search input{flex:1}
+
+    /* Toast */
+    #toast{
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+      background:#111827; color:#fff; padding:.8rem 1rem; border-radius:999px;
+      opacity:0; pointer-events:none; transition:.25s; z-index:9999;
+    }
+    #toast.show{opacity:1; pointer-events:auto}
+  </style>
+</head>
+<body>
+  <!-- HERO / TABS -->
+  <div class="hero">
+    <h1>📱 Controle de Estoque</h1>
+    <p>Movimentação de equipamentos • estilo app mobile</p>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="dash">Dashboard</button>
+    <button class="tab-btn" data-tab="ops">Operações</button>
+    <button class="tab-btn" data-tab="cad">Cadastro</button>
+    <button class="tab-btn" data-tab="hist">Histórico</button>
+  </div>
+
+  <main>
+    <!-- DASHBOARD -->
+    <section id="tab-dash" class="card span-2">
+      <h2>📦 Estoque Atual</h2>
+      <div class="kpis" id="kpis"></div>
+
+      <div class="row col-2" style="margin-top:12px">
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+            <h2 style="margin:0">Disponíveis</h2>
+            <span class="badge b-disp" id="count-disp">0</span>
+          </div>
+          <div class="list" id="list-disp"></div>
+        </div>
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+            <h2 style="margin:0">Instalados</h2>
+            <span class="badge b-inst" id="count-inst">0</span>
+          </div>
+          <div class="list" id="list-inst"></div>
+        </div>
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+            <h2 style="margin:0">Retirados</h2>
+            <span class="badge b-ret" id="count-ret">0</span>
+          </div>
+          <div class="list" id="list-ret"></div>
+        </div>
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+            <h2 style="margin:0">Devolvidos</h2>
+            <span class="badge b-dev" id="count-dev">0</span>
+          </div>
+          <div class="list" id="list-dev"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OPERAÇÕES -->
+    <section id="tab-ops" class="card" style="display:none">
+      <h2>⚙️ Operações</h2>
+      <div class="row col-2">
+        <!-- Assign -->
+        <div class="card">
+          <h2>📡 Instalar</h2>
+          <label>Cliente</label>
+          <select id="op-assign-cli"></select>
+          <label>Equipamento (DISPONÍVEL)</label>
+          <select id="op-assign-eq"></select>
+          <button class="btn btn-primary" onclick="assign()">Instalar</button>
+        </div>
+
+        <!-- Retirar -->
+        <div class="card">
+          <h2>📤 Retirar do cliente</h2>
+          <label>Cliente</label>
+          <select id="op-withdraw-cli"></select>
+          <label>Equipamento instalado (opcional)</label>
+          <select id="op-withdraw-eq"></select>
+          <label>OU informe o MAC antigo</label>
+          <input id="op-withdraw-mac" placeholder="AA:BB:CC:DD:EE:FF" />
+          <button class="btn btn-primary" onclick="withdraw()">Retirar</button>
+        </div>
+
+        <!-- Devolver -->
+        <div class="card">
+          <h2>🏢 Devolver ao almox</h2>
+          <label>Equipamento RETIRADO</label>
+          <select id="op-return-eq"></select>
+          <label>OU informe o MAC retirado</label>
+          <input id="op-return-mac" placeholder="AA:BB:CC:DD:EE:FF" />
+          <button class="btn btn-primary" onclick="returnWarehouse()">Devolver</button>
+        </div>
+
+        <!-- Troca -->
+        <div class="card">
+          <h2>🔄 Trocar</h2>
+          <label>Cliente</label>
+          <select id="op-swap-cli"></select>
+          <label>Equipamento NOVO (DISPONÍVEL)</label>
+          <select id="op-swap-new"></select>
+          <label>MAC do equipamento ANTIGO (não precisa existir no estoque)</label>
+          <input id="op-swap-old-mac" placeholder="AA:BB:CC:DD:EE:FF" />
+          <button class="btn btn-primary" onclick="swap()">Fazer troca</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CADASTRO -->
+    <section id="tab-cad" class="card" style="display:none">
+      <h2>📝 Cadastro</h2>
+      <div class="row col-2">
+        <div class="card">
+          <h2>👤 Novo Cliente</h2>
+          <label>Nome</label><input id="cli-name" placeholder="Nome do cliente" />
+          <label>Documento</label><input id="cli-doc" placeholder="CPF/CNPJ" />
+          <label>Endereço</label><input id="cli-addr" placeholder="Endereço" />
+          <label>Observações</label><input id="cli-notes" placeholder="Obs..." />
+          <button class="btn btn-primary" onclick="createClient()">Salvar Cliente</button>
+        </div>
+
+        <div class="card">
+          <h2>🔧 Novo Equipamento</h2>
+          <label>MAC</label><input id="eq-mac" placeholder="AA:BB:CC:DD:EE:FF" />
+          <label>Modelo</label><input id="eq-model" placeholder="Modelo" />
+          <label>Observações</label><input id="eq-notes" placeholder="Obs..." />
+          <button class="btn btn-primary" onclick="createEquipment()">Salvar Equipamento</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTÓRICO -->
+    <section id="tab-hist" class="card span-2" style="display:none">
+      <h2>📜 Histórico</h2>
+
+      <div class="search">
+        <input id="hist-search" placeholder="Filtrar por MAC, cliente ou tipo..." oninput="renderHistory()" />
+        <button class="btn btn-ghost" onclick="clearSearch()">Limpar</button>
+      </div>
+
+      <div id="history"></div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    const API = " https://22070a3b5bb0.ngrok-free.app";
+    let state = {clients:[], equipments:[], history:[]};
+
+    // ---------- Tabs ----------
+    document.querySelectorAll(".tab-btn").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        const tab = btn.dataset.tab;
+        ["dash","ops","cad","hist"].forEach(id=>{
+          document.getElementById("tab-"+id).style.display = (id===tab)?"block":(id==="dash"?"":"none");
+        });
+      });
+    });
+
+    // ---------- Toast ----------
+    function toast(msg){
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.classList.add("show");
+      setTimeout(()=>t.classList.remove("show"), 1800);
+    }
+
+    // ---------- Load ----------
+    async function loadAll(){
+      [state.clients, state.equipments, state.history] = await Promise.all([
+        fetch(API+"/clients").then(r=>r.json()),
+        fetch(API+"/equipments").then(r=>r.json()),
+        fetch(API+"/history").then(r=>r.json())
+      ]);
+      fillSelects();
+      renderKpis();
+      renderLists();
+      renderHistory();
+    }
+
+    // ---------- Selects ----------
+    function fill(id, list, map=(o)=>({value:o.id,label:o.mac||o.name})){
+      const sel = document.getElementById(id);
+      sel.innerHTML = '<option value="">Selecione</option>';
+      list.forEach(o=>{
+        const opt = document.createElement("option");
+        const m = map(o);
+        opt.value = m.value;
+        opt.textContent = `${m.label} (#${o.id})`;
+        sel.appendChild(opt);
+      });
+    }
+    function fillSelects(){
+      fill("op-assign-cli", state.clients, o=>({value:o.id,label:o.name}));
+      fill("op-withdraw-cli", state.clients, o=>({value:o.id,label:o.name}));
+      fill("op-swap-cli", state.clients, o=>({value:o.id,label:o.name}));
+
+      fill("op-assign-eq", state.equipments.filter(e=>e.status==="DISPONIVEL"));
+      fill("op-withdraw-eq", state.equipments.filter(e=>e.status==="INSTALADO"));
+      fill("op-return-eq", state.equipments.filter(e=>e.status==="RETIRADO"));
+      fill("op-swap-new", state.equipments.filter(e=>e.status==="DISPONIVEL"));
+    }
+
+    // ---------- Dashboard (KPIs + listas) ----------
+    function renderKpis(){
+      const k = document.getElementById("kpis");
+      const g = {
+        DISPONIVEL:"disp", INSTALADO:"inst", RETIRADO:"ret", DEVOLVIDO:"dev"
+      };
+      k.innerHTML = "";
+      Object.entries(g).forEach(([status, cls])=>{
+        const count = state.equipments.filter(e=>e.status===status).length;
+        const el = document.createElement("div");
+        el.className = `kpi ${cls}`;
+        const label = ({DISPONIVEL:"Disponíveis",INSTALADO:"Instalados",RETIRADO:"Retirados",DEVOLVIDO:"Devolvidos"})[status];
+        el.innerHTML = `<h3>${label}</h3><div class="big">${count}</div><div class="tag">◎</div>`;
+        k.appendChild(el);
+      });
+    }
+    function renderLists(){
+      const map = [
+        {status:"DISPONIVEL", list:"list-disp", count:"count-disp", dot:"disp"},
+        {status:"INSTALADO", list:"list-inst", count:"count-inst", dot:"inst"},
+        {status:"RETIRADO",  list:"list-ret",  count:"count-ret",  dot:"ret"},
+        {status:"DEVOLVIDO", list:"list-dev",  count:"count-dev",  dot:"dev"},
+      ];
+      map.forEach(({status,list,count,dot})=>{
+        const arr = state.equipments.filter(e=>e.status===status);
+        document.getElementById(count).innerText = arr.length;
+        const box = document.getElementById(list);
+        box.innerHTML = arr.length
+          ? arr.map(e=>`
+              <div class="item">
+                <span class="dot ${dot}"></span>
+                <div>
+                  <div><strong>${e.mac}</strong> <small>(${e.model||"sem modelo"})</small></div>
+                  <small>ID ${e.id} • ${status}</small>
+                </div>
+              </div>`).join("")
+          : `<div class="item"><div>Vazio</div></div>`;
+      });
+    }
+
+    // ---------- Histórico ----------
+    const TYPE_LABEL = {
+      ADD:{t:"Adicionado",chip:"c-add"},
+      ASSIGN:{t:"Instalado",chip:"c-assign"},
+      WITHDRAW_FROM_CLIENT:{t:"Retirado",chip:"c-withdraw"},
+      RETURN_TO_WAREHOUSE:{t:"Devolvido",chip:"c-return"},
+      SWAP_INSTALL:{t:"Troca - Instalado",chip:"c-swap"},
+      SWAP_WITHDRAW:{t:"Troca - Retirado",chip:"c-withdraw"},
+    };
+    function renderHistory(){
+      const wrap = document.getElementById("history");
+      const q = (document.getElementById("hist-search")?.value||"").trim().toLowerCase();
+      wrap.innerHTML = "";
+
+      const items = state.history
+        .map(h=>{
+          const eq = state.equipments.find(e=>e.id===h.equipment_id);
+          const cl = state.clients.find(c=>c.id===h.client_id);
+          return {...h, mac:eq?.mac||"—", model:eq?.model||"", status:eq?.status||"—", client:cl?.name||"—"};
+        })
+        .filter(x=>{
+          if(!q) return true;
+          return [x.mac,x.client,x.type,x.status,x.model].some(v=>String(v).toLowerCase().includes(q));
+        })
+        .sort((a,b)=> new Date(b.at) - new Date(a.at));
+
+      if(!items.length){
+        wrap.innerHTML = `<div class="h-item"><div class="h-meta">Nenhum registro encontrado.</div></div>`;
+        return;
+      }
+
+      items.forEach(h=>{
+        const info = TYPE_LABEL[h.type]||{t:h.type,chip:"c-assign"};
+        const div = document.createElement("div");
+        div.className="h-item";
+        div.innerHTML = `
+          <div class="h-top">
+            <span class="chip ${info.chip}">${info.t}</span>
+            <span class="h-meta">${new Date(h.at).toLocaleString()}</span>
+          </div>
+          <div><span class="h-mac">${h.mac}</span> • ${h.model||"sem modelo"}</div>
+          <div class="h-meta">Cliente: ${h.client} • Status atual: ${h.status}</div>
+          <div class="h-meta">ID Eq: ${h.equipment_id} ${h.client_id?`• ID Cliente: ${h.client_id}`:""}</div>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+    function clearSearch(){ const i=document.getElementById("hist-search"); i.value=""; renderHistory(); }
+
+    // ---------- Ações (API) ----------
+    async function createClient(){
+      const body = {
+        name:val("cli-name"), document:val("cli-doc"), address:val("cli-addr"), notes:val("cli-notes")
+      };
+      await fetch(API+"/clients",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      toast("Cliente salvo"); loadAll();
+    }
+    async function createEquipment(){
+      const body = { mac:val("eq-mac"), model:val("eq-model"), notes:val("eq-notes") };
+      await fetch(API+"/equipments",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      toast("Equipamento salvo"); loadAll();
+    }
+    async function assign(){
+      const body = { client_id:+val("op-assign-cli"), equipment_id:+val("op-assign-eq") };
+      await fetch(API+"/operations/assign",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      toast("Instalação registrada"); loadAll();
+    }
+    async function withdraw(){
+      const body = { client_id:+val("op-withdraw-cli") };
+      const id = +val("op-withdraw-eq"); const mac = val("op-withdraw-mac").trim();
+      if(mac) body.equipment_mac = mac; else body.equipment_id = id;
+      await fetch(API+"/operations/withdraw",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      toast("Retirada registrada"); loadAll();
+    }
+    async function returnWarehouse(){
+      const body = {};
+      const id = +val("op-return-eq"); const mac = val("op-return-mac").trim();
+      if(mac) body.equipment_mac = mac; else body.equipment_id = id;
+      await fetch(API+"/operations/return",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      toast("Devolução registrada"); loadAll();
+    }
+    async function swap(){
+      const body = {
+        client_id:+val("op-swap-cli"),
+        new_equipment_id:+val("op-swap-new"),
+        old_equipment_mac: val("op-swap-old-mac").trim()
+      };
+      await fetch(API+"/operations/swap",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      toast("Troca concluída"); loadAll();
+    }
+
+    function val(id){return document.getElementById(id).value}
+
+    // init
+    loadAll();
+  </script>
+</body>
+</html>
